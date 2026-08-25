@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 3 章 因子检验 · 量化研究入门</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="container">
+    <div class="brand">量化研究入门<small>多因子策略 · 尚宸笔试交付物</small></div>
+    <nav id="site-nav"></nav>
+    <button class="theme-toggle" id="theme-toggle"></button>
+  </div>
+</header>
+
+<main class="container">
+  <aside class="toc" id="page-toc"></aside>
+  <article class="content">
+    <h1>第 3 章 因子检验</h1>
+    <div class="chapter-meta">
+      <span>学习目标：掌握 IC/ICIR/t 值 · 分层回测与单调性 · 理解检验的局限</span>
+      <span>图表：C8-C12（可交互联动）</span><span>代码：notebook 03</span>
+    </div>
+    <p class="lead">因子构建完成只是开始——90% 的因子在检验环节被淘汰。检验回答四个问题：<strong>有效吗？稳定吗？单调吗？独立吗？</strong></p>
+
+    <h2 id="s1">3.1 检验的四维目标</h2>
+    <table>
+      <tr><th>维度</th><th>问什么</th><th>主要工具</th></tr>
+      <tr><td>有效性</td><td>因子值高 → 未来收益高？</td><td>IC 均值、分层多空收益</td></tr>
+      <tr><td>稳定性</td><td>每个月都有效，还是某几个月爆发？</td><td>IC 序列、ICIR、IC>0 胜率</td></tr>
+      <tr><td>单调性</td><td>收益随因子值单调上升（而非只在两端有效）？</td><td>分层回测（10 组净值）</td></tr>
+      <tr><td>独立性</td><td>与已有因子冗余吗？</td><td>因子相关性矩阵（第 4 章）</td></tr>
+    </table>
+
+    <h2 id="s2">3.2 IC 分析：因子与未来收益的相关性</h2>
+    <p><strong>IC（Information Coefficient）</strong>= 每期截面上，因子 z 值与未来一期收益的相关系数。两个口径：</p>
+    <ul>
+      <li><strong>Pearson IC</strong>：线性相关——对极端值敏感</li>
+      <li><strong>Rank IC（Spearman）</strong>：排序相关——更稳健，实践中更常用</li>
+    </ul>
+    <p>三个汇总统计（团队评审必问）：</p>
+    <ul>
+      <li><strong>IC 均值</strong>：平均预测力。经验阈值：月度 |IC| &gt; 0.03 才算"有可用性"</li>
+      <li><strong>ICIR</strong> = mean(IC)/std(IC)：单位风险的预测力——比 IC 均值更重要</li>
+      <li><strong>t 值</strong> = mean(IC)/(std(IC)/√N)：IC 显著性的统计检验，|t| &gt; 2 说明不是运气</li>
+    </ul>
+    <p>本资料的 8 个模拟因子被刻意设计为三个层级：强因子（EP/MOM60/ROE/GROW，月 IC ≈ 0.06）、中等（REV5 ≈ 0.05）、弱因子（SIZE/VOL20/TURN，|IC| ≤ 0.02）。下面的图表可以用<strong>因子选择器</strong>逐一查看。</p>
+
+    <div class="factor-switch" id="factor-switch"></div>
+
+    <div class="chart-box" data-chart="c8">
+      <div class="chart-title">C8 · 月度 IC 序列（60 期）</div>
+      <div class="chart-sub">点击任意因子折线可联动下方图表切换；滚轮缩放时间轴</div>
+      <div class="chart tall"></div>
+      <div class="chart-note"><strong>怎么看：</strong>强因子的 IC 序列在 0 附近上下波动但正多负少；弱因子（如 TURN）围绕 0 剧烈波动——肉眼可辨"稳定"与"碰运气"的区别。</div>
+    </div>
+
+    <div class="chart-box" data-chart="c9">
+      <div class="chart-title">C9 · IC 均值与 ICIR（8 因子横向对比）</div>
+      <div class="chart-sub">柱 = 月度 IC 均值（含 ±1σ 误差线）；标注 ICIR 与 t 值</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>强因子 IC≈0.06、t 值 5-6（极显著）；弱因子 t 值 2 左右（勉强显著）或更低。评审时"t 值过 2"是底线。</div>
+    </div>
+
+    <div class="chart-box" data-chart="c10">
+      <div class="chart-title">C10 · 累积 IC（方向一致性）</div>
+      <div class="chart-sub">IC 的逐期累积——斜率即方向，转弯即失效</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>强因子累积 IC 单调上行；若累积线中途"拐头向下"，说明因子方向在某段失效（动量崩溃等情形）。</div>
+    </div>
+
+    <h2 id="s3">3.3 分层回测：最直观的有效性证据</h2>
+    <p>把每期股票按因子值分 10 层（十分位），计算每层持有下个月的收益并累积为净值。三个观察点：</p>
+    <ul>
+      <li><strong>层间单调性</strong>：层 1 → 层 10 净值是否单调展开——单调说明因子"越有效越好用"</li>
+      <li><strong>多空价差</strong>：层 10 − 层 1（多空组合）——扣除市场后的纯因子收益</li>
+      <li><strong>两端是否收敛</strong>：中间层挤在一起、只有两端分开 → 因子只在极端处有效（容量小、易失效）</li>
+    </ul>
+
+    <div class="chart-box" data-chart="c11">
+      <div class="chart-title">C11 · 十分位分层累计净值（单色序渐变）</div>
+      <div class="chart-sub">图例可勾选单层查看；多空价差（LS）为粗线</div>
+      <div class="chart tall"></div>
+      <div class="chart-note"><strong>怎么看：</strong>强因子：10 条线按层号整齐展开、多空向上；弱因子：各层纠缠不分、多空趋平——一眼区分有效与无效。</div>
+    </div>
+
+    <div class="chart-box" data-chart="c12">
+      <div class="chart-title">C12 · 分层平均月收益（层 1-10 + 多空价差）</div>
+      <div class="chart-sub">多空价差柱用强调色高亮</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>有效因子层收益近似单调（SIZE 为负向单调）；弱因子层收益在 0 附近无规律。</div>
+    </div>
+
+    <h2 id="s4">3.4 检验的局限：IC 高 ≠ 能赚钱</h2>
+    <div class="callout warn">
+      <h4>IC 高只是必要条件</h4>
+      <ul>
+        <li><strong>容量</strong>：IC 0.08 的因子可能只在少数小市值股票上有效——放不进大资金</li>
+        <li><strong>换手与成本</strong>：高换手因子的 IC 会被交易成本吞噬（第 5 章成本敏感性演示）</li>
+        <li><strong>数据窥探（Data Snooping）</strong>：挖了 1000 个因子，总有几个样本内 t 值过 5——那是多重检验的必然产物，不是真本事</li>
+        <li><strong>时变性</strong>：因子有效性会衰减——今天有效不代表明年有效（第 6 章回测陷阱再讨论）</li>
+      </ul>
+    </div>
+
+    <h2 id="s5">3.5 核心代码：IC 与分层</h2>
+    <div class="code-block">
+<pre>import pandas as pd, numpy as np
+from scipy import stats
+
+factors = pd.read_csv("data/csv/factors.csv", parse_dates=["date"])
+
+# —— IC 分析 ——
+def ic_by_period(factors, zcol="z_EP"):
+    ics = []
+    for _, g in factors.groupby("date"):
+        sub = g[[zcol, "next_return"]].dropna()
+        if len(sub) >= 30:
+            ics.append(sub[zcol].corr(sub["next_return"]))          # Pearson IC
+            # ics.append(sub[zcol].corr(sub["next_return"], method="spearman"))  # Rank IC
+    ic = np.array(ics)
+    return dict(mean=ic.mean(), std=ic.std(),
+                icir=ic.mean() / ic.std(),
+                t=ic.mean() / (ic.std() / np.sqrt(len(ic))))
+
+# —— 十分位分层 ——
+def layer_returns(factors, zcol="z_EP", n_layers=10):
+    rows = []
+    for _, g in factors.groupby("date"):
+        sub = g[[zcol, "next_return"]].dropna()
+        sub["layer"] = pd.qcut(sub[zcol], n_layers, labels=False)   # 每期截面分位
+        rows.append(sub.groupby("layer")["next_return"].mean())
+    df = pd.DataFrame(rows)                                         # 每行一期
+    nav = (1 + df).cumprod()                                        # 层净值
+    ls = (1 + df.iloc[:, -1] - df.iloc[:, 0]).cumprod()             # 多空价差
+    return df, nav, ls</pre>
+    </div>
+
+    <h2 id="s6">常见误区</h2>
+    <div class="callout warn"><h4>误区一：只看 IC 均值，不看稳定性</h4><p>IC 均值 0.05 但标准差 0.15（ICIR 0.33）的因子，一半月份在反向失效。评审标准：ICIR &gt; 0.5、t &gt; 2 是入门线。</p></div>
+    <div class="callout warn"><h4>误区二：用日频 IC 冒充月频</h4><p>日频 IC 的样本量大，t 值天然虚高。与策略调仓频率匹配的检验频率才有意义（月度调仓 → 月频 IC）。</p></div>
+    <div class="callout warn"><h4>误区三：分层只看两端</h4><p>只报告"多空年化 30%"而层间不单调的因子，实际选股时中间层贡献为 0——必须看全部 10 层。</p></div>
+
+    <h2 id="s7">思考题</h2>
+    <ol>
+      <li>为什么分层回测用十分位而不是五分位？样本量 200 只时十分位的单层只有 20 只，收益估计误差如何？</li>
+      <li>REV5 因子 t 值 2.5、IC 0.05，但换手率接近 200%/月——你会采纳它吗？还要看什么？</li>
+      <li>累积 IC 线中途拐头，可能是哪两类原因？如何区分？</li>
+    </ol>
+
+    <div class="callout key">
+      <h4>衔接下一章</h4>
+      <p>通过检验的因子不止一个。下一步：<strong>如何把多个有效因子合成一个更稳健的组合因子？</strong>第 4 章讲相关性与权重方法。<a href="ch4-synthesis.html">→ 进入第 4 章</a></p>
+    </div>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <span>第 3 章 · 因子检验</span>
+    <span><a href="ch2-factor.html">← 上一章</a> · <a href="ch4-synthesis.html">下一章 →</a></span>
+  </div>
+</footer>
+
+<script src="../assets/js/echarts.min.js"></script>
+<script src="../assets/js/chartkit.js"></script>
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/pages/ch3.js"></script>
+</body>
+</html>

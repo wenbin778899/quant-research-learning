@@ -600,6 +600,37 @@ def attribution_payload(fdf, universe, port):
 # ----------------------------------------------------------------------------
 # 6. 复权价（前/后复权，教学简版算法）
 # ----------------------------------------------------------------------------
+def compute_distribution(close_mat, universe, dates, rebal):
+    """第 2 章 C6/C7 用：某期单因子的预处理三态分布（原始 / winsorize+zscore / 中性化后）。
+
+    取第 10 个调仓期的 EP 因子：输出原始值、仅标准化值、完整管道值（按行业分组）。
+    """
+    t = 10
+    d0 = int(rebal[t])
+    px = close_mat[d0]
+    eps = universe["roe_base"].values * universe["bvps"].values
+    raw = eps / np.where(px > 0, px, np.nan)
+    inds = universe["industry"].values
+    # 仅 winsorize + zscore（不做中性化）
+    z_std = factor_pipeline(np.array([raw]), inds)[0]
+    # 完整管道（winsorize + 中性化 + zscore）
+    z_full = factor_pipeline(np.array([raw]), inds)[0]
+    # 无中性化版本：winsorize + zscore（行业无关）
+    m = np.isfinite(raw)
+    xw = np.clip(raw, np.nanmean(raw[m]) - 3 * np.nanstd(raw[m]),
+                 np.nanmean(raw[m]) + 3 * np.nanstd(raw[m]))
+    z_only = (xw - np.nanmean(xw[m])) / np.nanstd(xw[m])
+    return {
+        "date": str(dates[d0].date()),
+        "factor": "EP",
+        "industries": INDUSTRIES,
+        "raw": [round(v, 6) if v == v else None for v in raw],
+        "z_only": [round(v, 6) if v == v else None for v in z_only],
+        "z_neutral": [round(v, 6) if v == v else None for v in z_full],
+        "industry_of": [INDUSTRIES.index(x) for x in inds],
+    }
+
+
 def compute_adjusted(close_mat, dividends, dates):
     """后复权 = close × cumprod(1+r_adj)；r_adj 在除息日 = (close+cash)(1+bonus)/prev − 1。
     前复权 = 后复权 × (最新收盘价 / 最新后复权价)。输入 close_mat 为清洗后矩阵。"""
@@ -759,6 +790,7 @@ def main():
             "adj_fwd": [round(v, 2) if v == v else None for v in sub["adj_close_fwd"].tolist()],
             "adj_bwd": [round(v, 2) if v == v else None for v in sub["adj_close_bwd"].tolist()]})
     export_json("kline_sample.json", kline)
+    export_json("distribution.json", compute_distribution(close_clean, universe, dates, rebal))
 
     self_check(fdf, layers, ic_payload, universe, prices_long, port)
     print("\n全部数据生成完成。")

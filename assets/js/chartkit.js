@@ -41,9 +41,12 @@ var ChartKit = (function () {
 
   function render(box, name) {
     var theme = currentTheme();
+    // 同容器重渲染前先释放旧实例（因子切换/主题切换场景）
+    var old = instances.filter(function (x) { return x.dom === box; });
+    old.forEach(function (x) { try { x.chart.dispose(); } catch (e) { /* ignore */ } });
+    instances = instances.filter(function (x) { return x.dom !== box; });
     var chart = echarts.init(box.querySelector(".chart") || box, theme);
     var entry = { dom: box, chart: chart, name: name, theme: theme };
-    instances = instances.filter(function (x) { return x.dom !== box; });
     instances.push(entry);
     var fn = renderers[name];
     if (!fn) {

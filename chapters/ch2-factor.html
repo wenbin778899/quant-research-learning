@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 2 章 因子构建 · 量化研究入门</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="container">
+    <div class="brand">量化研究入门<small>多因子策略 · 尚宸笔试交付物</small></div>
+    <nav id="site-nav"></nav>
+    <button class="theme-toggle" id="theme-toggle"></button>
+  </div>
+</header>
+
+<main class="container">
+  <aside class="toc" id="page-toc"></aside>
+  <article class="content">
+    <h1>第 2 章 因子构建</h1>
+    <div class="chapter-meta">
+      <span>学习目标：理解因子的本质 · 掌握 8 个示例因子的定义 · 标签对齐 · 标准化与行业中性化</span>
+      <span>图表：C6-C7</span><span>代码：notebook 02</span>
+    </div>
+    <p class="lead">因子是"能预测横截面收益的特征"。本章解决三个问题：<strong>什么是好因子</strong>、<strong>怎么计算</strong>、<strong>怎么让因子可比</strong>。</p>
+
+    <h2 id="s1">2.1 什么是因子：定价因子 vs 预测因子</h2>
+    <p>多因子研究的理论基础是套利定价理论（APT）：股票收益由一系列共同风险因子驱动。实践中我们构建两类因子：</p>
+    <ul>
+      <li><strong>定价因子（Risk Factor）</strong>：解释收益的风险来源——如 Fama-French 三因子的市场/规模/价值。研究目的是"解释"，对应第 7 章归因。</li>
+      <li><strong>预测因子（Alpha Factor）</strong>：预测未来横截面收益——如"低估值股票未来跑赢"。研究目的是"预测"，对应第 3 章检验。</li>
+    </ul>
+    <p>团队基础研究里说的"挖因子"，绝大多数是预测因子。一个预测因子必须回答：<strong>为什么它在逻辑上能预测收益？（经济逻辑）</strong>——纯粹数据挖掘出来的因子即使样本内有效，样本外也大概率失效。</p>
+
+    <h2 id="s2">2.2 八个示例因子的业务逻辑</h2>
+    <p>本资料使用 8 个模拟因子，覆盖基本面与量价两大族，并刻意设计了不同的"真实预测力"（第 3 章检验时可以看到差异）：</p>
+    <table>
+      <tr><th>因子</th><th>族</th><th>定义</th><th>业务逻辑</th><th>方向</th></tr>
+      <tr><td><strong>EP</strong></td><td>估值</td><td>每股收益 / 价格</td><td>便宜的好公司被低估（价值溢价）</td><td>正</td></tr>
+      <tr><td><strong>SIZE</strong></td><td>规模</td><td>ln(总市值)</td><td>A 股小市值效应（壳价值/低关注）</td><td><strong>负</strong></td></tr>
+      <tr><td><strong>MOM60</strong></td><td>量价</td><td>过去 60 日收益率</td><td>中期动量：趋势延续</td><td>正</td></tr>
+      <tr><td><strong>REV5</strong></td><td>量价</td><td>−过去 5 日收益率</td><td>短期反转：超跌反弹</td><td>正</td></tr>
+      <tr><td><strong>VOL20</strong></td><td>量价</td><td>−过去 20 日波动率</td><td>低波动异象：高波动股被高估</td><td>正</td></tr>
+      <tr><td><strong>TURN</strong></td><td>流动性</td><td>−月均换手率</td><td>低换手：筹码稳定/关注度低</td><td>正</td></tr>
+      <tr><td><strong>ROE</strong></td><td>基本面</td><td>净资产收益率</td><td>质量溢价：高盈利公司持续跑赢</td><td>正</td></tr>
+      <tr><td><strong>GROW</strong></td><td>基本面</td><td>营收增速</td><td>成长溢价</td><td>正</td></tr>
+    </table>
+    <div class="callout key">
+      <h4>注意因子方向的定义</h4>
+      <p>上表的方向是"因子值越高 → 未来收益越高"的预期方向。SIZE 是负向因子（小市值未来收益高），实际使用时通常取负或排序反向。数据里我们统一把因子做成"方向标准化"（第 2.4 节），负向因子直接取负号处理。</p>
+    </div>
+
+    <h2 id="s3">2.3 计算细节：窗口与标签对齐</h2>
+    <p>因子计算有两个最容易出错的细节：</p>
+    <ul>
+      <li><strong>窗口必须严格历史</strong>：MOM60 用调仓日前 60 个交易日，VOL20 用前 20 个交易日——用未来数据就是第 1 章讲的前瞻偏差。</li>
+      <li><strong>标签对齐（最关键）</strong>：t 期因子（调仓日 d₀ 计算）预测 <strong>t 期到 t+1 期</strong>（d₀ → d₁）的收益。收益标签 = <code>close[d₁]/close[d₀] − 1</code>，与因子严格错开一期——这是"因子预测未来"的标准口径。</li>
+    </ul>
+    <p>全部 8 个因子的 z 值按调仓期存放于 <code>data/csv/factors.csv</code>（<code>z_EP</code>、<code>z_SIZE</code>…），并附 <code>next_return</code> 标签列，供第 3-7 章直接使用。</p>
+
+    <h2 id="s4">2.4 标准化：让因子可以跨期、跨因子比较</h2>
+    <p>原始因子值不可直接比较：EP 是 0.05-0.3 的小数，SIZE 是 15-25 的对数市值。三件套预处理：</p>
+    <ol>
+      <li><strong>去极值（Winsorize）</strong>：超出均值 ±3σ 的截断——防止极端值主导排序</li>
+      <li><strong>截面标准化（z-score）</strong>：每期每因子减去截面均值、除以截面标准差 → 均值为 0、标准差为 1</li>
+      <li><strong>（可选）排名法</strong>：直接取截面百分位排名，更稳健（天然抵抗异常值）</li>
+    </ol>
+
+    <div class="chart-box" data-chart="c6">
+      <div class="chart-title">C6 · 因子预处理三态分布（EP 因子，第 10 个调仓期）</div>
+      <div class="chart-sub">原始值（左轴）vs 仅标准化 vs 完整管道（中性化后）——直方图对比</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>原始 EP 分布右偏且量纲不一；z-score 后分布居中（均值 0）；中性化后行业差异被剥离（各行业均值对齐 0）。</div>
+    </div>
+
+    <h2 id="s5">2.5 中性化：剥离已知风险后剩下的才是 alpha</h2>
+    <p>行业中性化是最重要的一步：<strong>如果你持有"医药行业因子"而非"医药行业内选股能力"，组合就暴露在行业风险下</strong>。做法：把因子值对行业哑变量回归，取残差——残差就是"行业内相对强弱"。</p>
+    <div class="callout warn">
+      <h4>为什么要中性化？</h4>
+      <p>假设"银行股普遍便宜"（EP 高）但银行整体跑输——不做行业中性化，EP 因子看起来"有效"（高 EP 股跑输）或"无效"（被行业拖累），真实原因是行业配置而非选股。中性化后，因子衡量的是"行业内哪只更便宜"，这才对应选股 alpha。</p>
+    </div>
+
+    <div class="chart-box" data-chart="c7">
+      <div class="chart-title">C7 · 行业中性化效果（EP 因子按行业分组箱线）</div>
+      <div class="chart-sub">左：仅标准化（行业均值明显分层）；右：中性化后（各行业均值对齐 0）</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>中性化前，不同行业的 EP 因子均值差异显著（某些行业整体"便宜"）；中性化后各行业箱体居中于 0——因子不再携带行业信息。</div>
+    </div>
+
+    <h2 id="s6">2.6 核心代码：因子计算与预处理</h2>
+    <p>完整代码见 <code>notebooks/02_factor_construction.ipynb</code>。核心逻辑：</p>
+    <div class="code-block">
+<pre>def compute_factors(close, rebal_dates, window=60):
+    """调仓日截面因子计算（严格历史窗口，无前瞻偏差）"""
+    out = {}
+    for d0 in rebal_dates:
+        i0 = close.index.get_loc(d0)
+        px = close.iloc[i0]
+        mom = px / close.iloc[i0 - window] - 1      # 60 日动量
+        vol = -close.iloc[i0 - 20:i0].std()          # 20 日波动率（负号 → 低波动因子）
+        out[d0] = {"MOM60": mom, "VOL20": vol, "EP": eps / px, ...}
+    return pd.DataFrame(out).T
+
+def winsorize(x, n=3):
+    m, s = x.mean(), x.std()
+    return x.clip(m - n * s, m + n * s)
+
+def neutralize(x, industries):
+    """行业中性化：对行业哑变量回归取残差（等价于减去行业均值）"""
+    dummies = pd.get_dummies(industries)
+    return x - dummies @ (dummies.T @ dummies).inv() @ dummies.T @ x  # 或直接减行业均值</pre>
+    </div>
+
+    <h2 id="s7">常见误区</h2>
+    <div class="callout warn"><h4>误区一：因子计算用了未来数据</h4><p>典型症状：因子 IC 异常高（>0.15）。自查：动量窗口、波动率窗口、财务数据披露日期是否严格 ≤ 调仓日。</p></div>
+    <div class="callout warn"><h4>误区二：标签错位</h4><p>把 t 期因子配了 t 期收益（同期相关），看起来"有效"实则是伪相关。标准口径：因子 t 期、收益 t→t+1 期。</p></div>
+    <div class="callout warn"><h4>误区三：因子不平滑直接合成</h4><p>未去极值、未标准化的因子直接等权合成，极端值主导合成分数。预处理必须每个因子、每期截面都做。</p></div>
+
+    <h2 id="s8">思考题</h2>
+    <ol>
+      <li>SIZE 是负向因子，如果你直接把它和其他正向因子等权合成，会发生什么？合成前应该怎么处理方向？</li>
+      <li>行业中性化会损失因子信息吗？什么情况下"不做中性化"反而是对的？</li>
+      <li>财务因子（ROE）在 4 月底披露年报——如果 2 月就用上年年报数据构建 ROE 因子，犯了什么错？如何修正？</li>
+    </ol>
+
+    <div class="callout key">
+      <h4>衔接下一章</h4>
+      <p>因子构建好了，下一步是残酷的审判：<strong>这个因子真的有效吗？</strong>第 3 章用 IC 分析与分层回测给出量化答案。<a href="ch3-testing.html">→ 进入第 3 章</a></p>
+    </div>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <span>第 2 章 · 因子构建</span>
+    <span><a href="ch1-data.html">← 上一章</a> · <a href="ch3-testing.html">下一章 →</a></span>
+  </div>
+</footer>
+
+<script src="../assets/js/echarts.min.js"></script>
+<script src="../assets/js/chartkit.js"></script>
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/pages/ch2.js"></script>
+</body>
+</html>

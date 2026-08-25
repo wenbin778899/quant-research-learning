@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 7 章 绩效归因 · 量化研究入门</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="container">
+    <div class="brand">量化研究入门<small>多因子策略 · 尚宸笔试交付物</small></div>
+    <nav id="site-nav"></nav>
+    <button class="theme-toggle" id="theme-toggle"></button>
+  </div>
+</header>
+
+<main class="container">
+  <aside class="toc" id="page-toc"></aside>
+  <article class="content">
+    <h1>第 7 章 绩效归因</h1>
+    <div class="chapter-meta">
+      <span>学习目标：Brinson 归因 · 风格暴露 · 风险分解 · 归因的局限</span>
+      <span>图表：C22-C24</span><span>代码：notebook 07</span>
+    </div>
+    <p class="lead">归因回答团队最关心的问题：<strong>超额收益是能力还是运气？是行业判断还是选股本事？风险到底藏在哪？</strong></p>
+
+    <h2 id="s1">7.1 为什么必须做归因</h2>
+    <ul>
+      <li><strong>对研究者</strong>：区分"行业 beta 赚钱"与"行业内 alpha 赚钱"——后者才是可持续的能力</li>
+      <li><strong>对风控</strong>：暴露在哪些风格上？回撤时该怪谁？</li>
+      <li><strong>对管理者</strong>：判断策略的收益来源是否与宣称一致（比如"选股策略"实际是"小市值下注"）</li>
+    </ul>
+
+    <h2 id="s2">7.2 Brinson 归因：配置 vs 选股</h2>
+    <p>Brinson 把组合相对基准的超额收益拆成两块：</p>
+    <ul>
+      <li><strong>配置效应（Allocation）</strong>：组合行业权重与基准不同带来的超额——"押对了行业"</li>
+      <li><strong>选股效应（Selection）</strong>：行业内组合持仓相对行业平均的超额——"选对了股票"（本资料把交互项并入选股，保证拆解闭合）</li>
+    </ul>
+
+    <div class="chart-box" data-chart="c22">
+      <div class="chart-title">C22 · Brinson 归因（季度聚合，组合 vs 全市场等权基准）</div>
+      <div class="chart-sub">配置效应（行业押注）与选股效应（行业内选股）</div>
+      <div class="chart tall"></div>
+      <div class="chart-note"><strong>怎么看：</strong>本模拟组合是"行业内选股"型策略：超额主要来自<strong>选股效应</strong>（行业内高分股跑赢），配置效应围绕 0 波动（Top20 的行业分布接近基准）。这正是"合成因子做行业内选股"的设计意图。</div>
+    </div>
+
+    <h2 id="s3">7.3 风格暴露：组合在哪些风格上"下注"</h2>
+    <p>把组合持仓的因子暴露（加权 z 值）逐期画出来：暴露为 0 表示风格中性，偏离 0 表示对某风格下注。</p>
+
+    <div class="chart-box" data-chart="c23">
+      <div class="chart-title">C23 · 组合风格暴露（5 个风格因子，60 期）</div>
+      <div class="chart-sub">持仓加权 z 值；0 = 风格中性</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>模拟组合对 SIZE（小市值）暴露为负（小市值下注）、对 MOM60 正暴露——这是等权合成因子的自然结果。风格暴露是"隐藏的风险敞口"，风控用它做限额。</div>
+    </div>
+
+    <h2 id="s4">7.4 风险分解：收益的波动从哪来</h2>
+    <p>把组合收益方差分解为三部分（季度滚动 12 期回归，增量 R² 法）：</p>
+    <ul>
+      <li><strong>系统性风险</strong>：市场（基准）波动贡献</li>
+      <li><strong>行业风险</strong>：行业收益差贡献</li>
+      <li><strong>特质风险</strong>：选股（残差）部分——这才是"策略自己的波动"</li>
+    </ul>
+
+    <div class="chart-box" data-chart="c24">
+      <div class="chart-title">C24 · 组合风险分解（季度，增量 R²）</div>
+      <div class="chart-sub">系统性 / 行业 / 特质 三方贡献之和恒为 1</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>约 80% 的波动来自市场（beta 跟随大盘），行业与特质各占一小部分——正常的多头选股组合形态。若特质风险占比过高，说明选股集中度高、容量敏感。</div>
+    </div>
+
+    <h2 id="s5">7.5 归因的局限</h2>
+    <div class="callout warn">
+      <h4>归因是"解释"不是"因果"</h4>
+      <ul>
+        <li>归因依赖基准选择——换一个基准，配置/选股的拆分完全不同</li>
+        <li>行业分类的粒度（申万一级 vs 二级）影响拆解结果</li>
+        <li>高频交易的归因需要逐笔数据，月度归因会失真</li>
+        <li>选股效应为正也可能是"运气"——需要多期统计显著性检验（t 值）</li>
+      </ul>
+    </div>
+
+    <h2 id="s6">7.6 核心代码：Brinson 归因</h2>
+    <div class="code-block">
+<pre># 每期：组合行业权重 w_p、基准行业权重 w_b、行业收益 r_ind、基准收益 r_b
+alloc = (w_p - w_b) * r_ind                    # 配置效应（行业押注）
+total = r_p - r_b                              # 组合超额
+sel   = total - alloc.sum()                    # 选股效应（含交互，保证闭合）
+
+# 季度聚合后可视化：配置 ≈ 0、选股 ≈ 超额 → 纯行业内选股策略的典型形态</pre>
+    </div>
+
+    <h2 id="s7">常见误区</h2>
+    <div class="callout warn"><h4>误区一：把归因当因果</h4><p>"选股效应贡献 80% 超额"不等于"我们的选股能力强"——样本期短时这可能是运气。检验方法：对选股效应做 t 检验。</p></div>
+    <div class="callout warn"><h4>误区二：风格暴露不监控</h4><p>小市值暴露在 2021-2022 年回撤——归因报告里它一直在，只是没人看。风格暴露限额是风控的日常功课。</p></div>
+    <div class="callout warn"><h4>误区三：基准选错，归因失真</h4><p>用沪深 300 给中小盘策略做归因，配置效应会"虚胖"——基准必须与股票池同域。</p></div>
+
+    <h2 id="s8">思考题</h2>
+    <ol>
+      <li>如果 C22 里配置效应贡献了大部分超额，你会如何调整策略或归因结论？</li>
+      <li>风格暴露与第 2 章"因子中性化"是什么关系？两者矛盾的场景？</li>
+      <li>特质风险占比 90% 的组合，说明什么？容量会受影响吗？</li>
+    </ol>
+
+    <div class="callout key">
+      <h4>流程闭环</h4>
+      <p>到这里，数据 → 因子 → 检验 → 合成 → 组合 → 回测 → 归因的完整链路走完了。归因发现的问题（行业暴露过高、风格漂移）会<strong>反馈回因子构建与组合约束</strong>——这就是量化研究的迭代循环。<a href="../appendix.html">→ 附录：术语表与复现说明</a></p>
+    </div>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <span>第 7 章 · 绩效归因</span>
+    <span><a href="ch6-backtest.html">← 上一章</a> · <a href="../appendix.html">附录 →</a></span>
+  </div>
+</footer>
+
+<script src="../assets/js/echarts.min.js"></script>
+<script src="../assets/js/chartkit.js"></script>
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/pages/ch7.js"></script>
+</body>
+</html>

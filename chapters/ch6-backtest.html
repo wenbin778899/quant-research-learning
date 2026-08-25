@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 6 章 回测与评估 · 量化研究入门</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="container">
+    <div class="brand">量化研究入门<small>多因子策略 · 尚宸笔试交付物</small></div>
+    <nav id="site-nav"></nav>
+    <button class="theme-toggle" id="theme-toggle"></button>
+  </div>
+</header>
+
+<main class="container">
+  <aside class="toc" id="page-toc"></aside>
+  <article class="content">
+    <h1>第 6 章 回测与评估</h1>
+    <div class="chapter-meta">
+      <span>学习目标：回测范式 · 绩效指标体系 · 超额指标 · 回测陷阱</span>
+      <span>图表：C19-C21</span><span>代码：notebook 06</span>
+    </div>
+    <p class="lead">回测是策略的"体检报告"。本章回答：<strong>回测怎么跑才可信</strong>、<strong>指标怎么读</strong>、<strong>报告里最容易造假（或无意识造假）的地方在哪</strong>。</p>
+
+    <h2 id="s1">6.1 回测范式与纪律</h2>
+    <ul>
+      <li><strong>向量化回测</strong>：一次计算全部持仓期的收益——快，适合因子研究阶段（本资料使用）</li>
+      <li><strong>事件驱动回测</strong>：逐日撮合订单——准，适合策略上线前验证（含涨跌停、停牌、流动性约束）</li>
+    </ul>
+    <p><strong>回测纪律（PIT 纪律）</strong>：调仓日收盘后（或次日开盘）才可知的因子，不得用于当期的交易决策；交易价格用调仓日之后的价格。本资料的回测全部遵守：因子用 d₀ 及以前的数据，收益从 d₀ 到 d₁ 实现。</p>
+
+    <h2 id="s2">6.2 净值与回撤：核心回测结果</h2>
+    <div class="chart-box" data-chart="c19">
+      <div class="chart-title">C19 · 组合 / 基准 / 多空净值（上）与回撤（下）</div>
+      <div class="chart-sub">双面板同轴联动：悬停净值线，回撤面板同步标记</div>
+      <div class="chart tall"></div>
+      <div class="chart-note"><strong>怎么看：</strong>上：组合（合成因子 Top20）显著跑赢基准（全市场等权），多空组合（Top20−Bottom20）剥离市场后的纯 alpha；下：组合最大回撤约 12%，基准约 22%——控制回撤也是因子的贡献。</div>
+    </div>
+
+    <div class="chart-box" data-chart="c20">
+      <div class="chart-title">C20 · 滚动 12 个月超额收益</div>
+      <div class="chart-sub">绿 = 正超额，红 = 负超额</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>大多数月份组合跑赢；负超额区间（红）通常在因子失效或风格切换期——滚动窗口比累计曲线更能暴露"超额是否稳定"。</div>
+    </div>
+
+    <h2 id="s3">6.3 绩效指标体系</h2>
+    <div id="metrics" data-chart="c21"></div>
+    <p><strong>关键解读</strong>：</p>
+    <ul>
+      <li><strong>夏普比率</strong>：每单位总风险的超额回报——衡量"值不值得承担这个波动"；A 股多头策略 1 以上算优秀</li>
+      <li><strong>最大回撤</strong>：历史最坏单段跌幅——决定组合能否被持有（回撤 50% 的策略大多中途被砍）</li>
+      <li><strong>Calmar</strong> = 年化收益/|最大回撤|：性价比指标</li>
+      <li><strong>信息比率（IR）</strong>：每单位跟踪误差的超额收益——衡量"超额是否稳定"（与因子 ICIR 同构）</li>
+      <li><strong>胜率</strong>：月度跑赢基准的比例——心理体验指标</li>
+    </ul>
+
+    <h2 id="s4">6.4 回测陷阱：为什么回测赚钱、实盘亏钱</h2>
+    <div class="callout pitfall">
+      <h4>四大经典陷阱</h4>
+      <ol>
+        <li><strong>前视偏差</strong>：用未来数据回测（第 1 章）——症状是回测曲线"漂亮得不真实"</li>
+        <li><strong>幸存者偏差</strong>：股票池只用现存股票——回测收益系统性虚高</li>
+        <li><strong>数据窥探 / 过拟合</strong>：在样本内反复调参直到"最优"——参数是对历史噪声的记忆。缓解：样本外验证、Walk-forward、正则化</li>
+        <li><strong>交易假设不现实</strong>：按收盘价成交、零成本、满仓满融——真实交易有滑点、涨跌停买不进、冲击成本</li>
+      </ol>
+      <p><strong>检验一个回测报告是否可信的快速清单</strong>：① 是否报告了扣费后收益？② 是否报告了换手率？③ 股票池是否含退市股？④ 参数是否在样本外验证过？</p>
+    </div>
+
+    <h2 id="s5">6.5 核心代码：回测引擎</h2>
+    <div class="code-block">
+<pre>def backtest(holds, monthly_ret, cost_bps=10):
+    """简化回测：持有组合的月度收益序列 → 净值/回撤/指标"""
+    nav = [1.0]
+    for t, codes in enumerate(holds[1:], start=1):
+        r = monthly_ret.loc[codes].mean()          # 等权组合月收益
+        turn = len(set(codes) ^ set(holds[t-1])) / len(codes)
+        nav.append(nav[-1] * (1 + r - turn * cost_bps * 1e-4))
+    nav = pd.Series(nav)
+    drawdown = nav / nav.cummax() - 1
+    return dict(
+        annual_return=nav.iloc[-1] ** (12 / (len(nav) - 1)) - 1,
+        max_drawdown=drawdown.min(),
+        sharpe=(nav.pct_change().mean() * 12) / (nav.pct_change().std() * np.sqrt(12)),
+        calmar=nav.iloc[-1] ** (12 / (len(nav) - 1)) - 1 / abs(drawdown.min()),
+    )</pre>
+    </div>
+
+    <h2 id="s6">常见误区</h2>
+    <div class="callout warn"><h4>误区一：只看收益不看回撤</h4><p>"年化 60%"不提最大回撤 45% 的报告，等于只报喜。回撤和收益必须成对出现。</p></div>
+    <div class="callout warn"><h4>误区二：夏普高但容量小</h4><p>小市值因子的夏普可以很漂亮——因为没人跟你抢流动性。容量分析（按冲击成本反推最大规模）才是机构关心的。</p></div>
+    <div class="callout warn"><h4>误区三：用样本内曲线论证策略</h4><p>回测曲线是"假设检验的样本内拟合"，不是"策略成立的证明"。成立要靠样本外、多市场、多周期验证。</p></div>
+
+    <h2 id="s7">思考题</h2>
+    <ol>
+      <li>多空组合收益为 0 但多头显著跑赢基准——这个因子还值得用吗？为什么？</li>
+      <li>回测里用"调仓日收盘价"成交，实际操作做不到（收盘前才知道信号）——如何修正交易假设？</li>
+      <li>一个策略夏普 1.8 但近 6 个月连续跑输——你会砍掉它还是加仓？判断依据是什么？</li>
+    </ol>
+
+    <div class="callout key">
+      <h4>衔接下一章</h4>
+      <p>回测通过了，但<strong>收益从哪来、风险藏在哪</strong>还不知道。第 7 章用归因拆解：配置贡献多少、选股贡献多少、风格暴露有多深。<a href="ch7-attribution.html">→ 进入第 7 章</a></p>
+    </div>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <span>第 6 章 · 回测与评估</span>
+    <span><a href="ch5-portfolio.html">← 上一章</a> · <a href="ch7-attribution.html">下一章 →</a></span>
+  </div>
+</footer>
+
+<script src="../assets/js/echarts.min.js"></script>
+<script src="../assets/js/chartkit.js"></script>
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/pages/ch6.js"></script>
+</body>
+</html>

@@ -3,24 +3,149 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="量化研究入门学习资料：量化多因子策略完整研究流程（数据→因子→检验→合成→组合→回测→归因）的概念讲解、交互图表与可运行代码。尚宸量化策略实习生笔试交付物。">
 <title>量化研究入门学习资料 · 尚宸笔试</title>
 <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
-<header>
+<header class="site-header">
   <div class="container">
-    <h1>量化研究入门学习资料</h1>
-    <p class="subtitle">量化多因子策略 · 完整研究流程与实操入门</p>
+    <div class="brand">量化研究入门<small>多因子策略 · 尚宸笔试交付物</small></div>
+    <nav id="site-nav"></nav>
+    <button class="theme-toggle" id="theme-toggle"></button>
   </div>
 </header>
+
 <main class="container">
-  <section class="hero">
-    <p>本网站正在建设中。内容将以「数据 → 因子 → 检验 → 合成 → 组合 → 回测 → 归因」的完整研究流程为主线，
-       为量化策略团队新实习生提供概念讲解、交互图表与可运行代码三位一体的入门学习资料。</p>
-  </section>
+  <article class="content">
+    <h1>量化研究入门学习资料</h1>
+    <p class="lead">面向量化策略团队新实习生：如果你已具备基础金融知识与 Python 数据分析能力，但对「量化多因子策略的完整研究流程」还不熟悉，这份资料可以帮你建立体系化的认识，并直接上手基础研究工作。</p>
+
+    <div class="chapter-meta">
+      <span>📖 7 个核心章节</span><span>📊 25 张交互图表</span>
+      <span>💻 7 本可运行 Notebook</span><span>🕐 预计通读 4-6 小时</span>
+    </div>
+
+    <h2 id="flow">研究流程全景</h2>
+    <p>多因子策略的研究是一条闭环流水线：从原始数据出发，构建因子、验证因子、合成因子，最终落到组合、回测与归因。下面 7 个环节是本资料的主线，<strong>每个环节都回答一个问题</strong>。</p>
+
+    <div class="flow">
+      <div class="step"><div class="no">①</div><div class="nm">数据获取与清洗</div><div class="ds">"数据可靠吗？"</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="no">②</div><div class="nm">因子构建</div><div class="ds">"什么特征能预测收益？"</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="no">③</div><div class="nm">因子检验</div><div class="ds">"这个因子有效吗？"</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="no">④</div><div class="nm">因子合成</div><div class="ds">"怎么组合多个因子？"</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="no">⑤</div><div class="nm">组合构建</div><div class="ds">"怎么选股与配权重？"</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="no">⑥</div><div class="nm">回测与评估</div><div class="ds">"策略真实表现如何？"</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="no">⑦</div><div class="nm">绩效归因</div><div class="ds">"收益从哪来？"</div></div>
+    </div>
+
+    <div class="callout key">
+      <h4>为什么用这条主线？</h4>
+      <p>它是团队基础研究工作的真实流水线：研究员在任何一个环节都可能被问到「你怎么知道数据是对的」「IC 稳定吗」「扣费后还赚钱吗」。本资料每个章节的「常见误区」小节，都是团队实际踩过的坑。</p>
+    </div>
+
+    <h2 id="chapters">章节导航</h2>
+    <p>每章包含：概念讲解 → 交互图表演示 → 核心代码 → 常见误区 → 思考题。</p>
+    <div class="card-grid">
+      <div class="card">
+        <div class="num">1</div>
+        <h3><a href="chapters/ch1-data.html">数据获取与清洗</a></h3>
+        <p>数据源、截面×时序面板、清洗清单、复权、Point-in-Time 与前瞻偏差、幸存者偏差</p>
+        <span class="tag">约 45 分钟 · 入门</span>
+      </div>
+      <div class="card">
+        <div class="num">2</div>
+        <h3><a href="chapters/ch2-factor.html">因子构建</a></h3>
+        <p>什么是因子、8 个示例因子的业务逻辑、标签对齐、标准化与行业中性化</p>
+        <span class="tag">约 50 分钟 · 核心</span>
+      </div>
+      <div class="card">
+        <div class="num">3</div>
+        <h3><a href="chapters/ch3-testing.html">因子检验</a></h3>
+        <p>IC/ICIR/t 值、分层回测与单调性、检验的局限——本资料交互最丰富的章节</p>
+        <span class="tag">约 60 分钟 · 核心</span>
+      </div>
+      <div class="card">
+        <div class="num">4</div>
+        <h3><a href="chapters/ch4-synthesis.html">因子合成</a></h3>
+        <p>相关性去冗余、等权/IC 加权/IR 加权、合成增益评估</p>
+        <span class="tag">约 40 分钟 · 进阶</span>
+      </div>
+      <div class="card">
+        <div class="num">5</div>
+        <h3><a href="chapters/ch5-portfolio.html">组合构建</a></h3>
+        <p>从因子分数到持仓、权重方案、约束、成本与换手、基准选择</p>
+        <span class="tag">约 40 分钟 · 进阶</span>
+      </div>
+      <div class="card">
+        <div class="num">6</div>
+        <h3><a href="chapters/ch6-backtest.html">回测与评估</a></h3>
+        <p>回测范式、绩效指标、超额指标、回测陷阱（过拟合/数据窥探）</p>
+        <span class="tag">约 50 分钟 · 核心</span>
+      </div>
+      <div class="card">
+        <div class="num">7</div>
+        <h3><a href="chapters/ch7-attribution.html">绩效归因</a></h3>
+        <p>Brinson 归因、风格暴露、风险分解、归因的局限</p>
+        <span class="tag">约 40 分钟 · 进阶</span>
+      </div>
+      <div class="card">
+        <div class="num">+</div>
+        <h3><a href="appendix.html">附录</a></h3>
+        <p>术语表（30+ 词条）、数据字典、Notebook 索引、复现说明</p>
+        <span class="tag">随时查阅</span>
+      </div>
+      <div class="card">
+        <div class="num">问</div>
+        <h3><a href="process.html">研究过程与提问</a></h3>
+        <p>本资料的 24 小时研究过程时间线、对 AI 的全部提问记录与方法论</p>
+        <span class="tag">笔试交付物二</span>
+      </div>
+    </div>
+
+    <h2 id="reading">三条阅读路线</h2>
+    <table>
+      <tr><th>路线</th><th>适合人群</th><th>路径</th></tr>
+      <tr>
+        <td><strong>通读线</strong></td><td>希望建立完整体系</td>
+        <td>按 1→7 章顺序阅读，每章 45-60 分钟，图表与代码都过一遍，最后读附录术语表</td>
+      </tr>
+      <tr>
+        <td><strong>动手线</strong></td><td>习惯边做边学</td>
+        <td>先读第 1、2 章建立数据与因子直觉，然后打开对应 Notebook 从 <code>data/csv/</code> 重算每张图</td>
+      </tr>
+      <tr>
+        <td><strong>评审快速线</strong></td><td>快速了解项目全貌</td>
+        <td>本页流程全景 → 第 3 章（因子检验，最能体现专业度）→ 第 6 章（回测）→ 研究过程页</td>
+      </tr>
+    </table>
+
+    <h2 id="reproduce">数据与可复现性</h2>
+    <p>本网站全部图表数据由 <code>scripts/generate_data.py</code> 生成（模拟 A 股环境，固定随机种子，可完整复现）：</p>
+    <ul>
+      <li><strong>模拟股票池</strong>：200 只股票 × 8 行业，2020-2024 共 5 年日线行情，含 3 只退市股与 30% 分红股票（教学点：幸存者偏差、复权）</li>
+      <li><strong>8 个示例因子</strong>：EP（估值）、SIZE（规模）、MOM60（动量）、REV5（反转）、VOL20（低波动）、TURN（低换手）、ROE（质量）、GROW（成长），IC 经校准落在贴近真实研究的水平（有效因子月度 IC ≈ 0.06，弱因子 ≈ 0.02）</li>
+      <li><strong>完整管线</strong>：IC → 分层 → 合成 → 组合 → 回测 → 归因全部预计算为 JSON，Notebook 可从 CSV 重算并自动校验一致性</li>
+    </ul>
+    <p>数据文件与复现步骤见 <a href="appendix.html#repro">附录 · 复现说明</a>。</p>
+  </article>
 </main>
-<footer class="container">
-  <p>尚宸 · 量化策略实习生笔试 · 交付物一：量化研究入门学习资料</p>
+
+<footer class="site-footer">
+  <div class="container">
+    <span>尚宸 · 量化策略实习生笔试 — 交付物一：量化研究入门学习资料</span>
+    <span>数据由模拟生成，仅供教学演示</span>
+  </div>
 </footer>
+
+<script src="assets/js/echarts.min.js"></script>
+<script src="assets/js/chartkit.js"></script>
+<script src="assets/js/common.js"></script>
 </body>
 </html>

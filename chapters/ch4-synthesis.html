@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 4 章 因子合成 · 量化研究入门</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="container">
+    <div class="brand">量化研究入门<small>多因子策略 · 尚宸笔试交付物</small></div>
+    <nav id="site-nav"></nav>
+    <button class="theme-toggle" id="theme-toggle"></button>
+  </div>
+</header>
+
+<main class="container">
+  <aside class="toc" id="page-toc"></aside>
+  <article class="content">
+    <h1>第 4 章 因子合成</h1>
+    <div class="chapter-meta">
+      <span>学习目标：理解去冗余 · 掌握等权/IC 加权/IR 加权 · 评估合成增益</span>
+      <span>图表：C13-C15</span><span>代码：notebook 04</span>
+    </div>
+    <p class="lead">单一因子再强也脆弱（行业风格切换、因子失效）。把多个<strong>互补</strong>的因子合成一个组合因子，是降低风险、提高稳定性的标准做法。</p>
+
+    <h2 id="s1">4.1 为什么合成：分散化在因子层面的体现</h2>
+    <p>组合分散化（不把鸡蛋放一个篮子）同样适用于因子：多个低相关因子的合成，其 IC 波动显著低于单一因子——相当于因子层面的"风险平价"。前提是：<strong>因子间相关性要低</strong>，否则合成只是重复下注。</p>
+
+    <h2 id="s2">4.2 相关性分析与去冗余</h2>
+    <p>先看 8 个因子的截面相关系数矩阵（时间平均）：</p>
+
+    <div class="chart-box" data-chart="c13">
+      <div class="chart-title">C13 · 因子相关性热力图（8×8）</div>
+      <div class="chart-sub">按调仓期逐期计算截面相关后取平均；悬停查看数值</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>对角为 1；期望看到 <strong>MOM60 与 REV5 负相关</strong>（动量 vs 反转天然对立）、量价因子与基本面因子低相关。|ρ| &gt; 0.6 的因子对视为冗余，需二选一或正交化。</div>
+    </div>
+    <div class="callout key">
+      <h4>去冗余的操作手段</h4>
+      <ul>
+        <li><strong>剔除</strong>：相关矩阵里保留 IC 更高/更稳健的一个</li>
+        <li><strong>正交化</strong>：把弱因子对强因子回归取残差（新因子 = 弱因子的"增量信息"）</li>
+        <li><strong>聚类合并</strong>：同族因子（如所有估值因子）先等权合并为一个子因子</li>
+      </ul>
+    </div>
+
+    <h2 id="s3">4.3 权重方法：三种常见方案</h2>
+    <table>
+      <tr><th>方法</th><th>权重</th><th>优点</th><th>缺点</th></tr>
+      <tr><td>等权（Equal）</td><td>1/N</td><td>简单稳健，不依赖样本内估计</td><td>给弱因子同样权重</td></tr>
+      <tr><td>IC 加权</td><td>∝ 样本内 IC 均值</td><td>利用历史预测力</td><td>样本内 IC 有噪声，权重不稳</td></tr>
+      <tr><td>IR 加权</td><td>∝ ICIR（截断负值）</td><td>同时考虑稳定度</td><td>同样受样本内估计误差影响</td></tr>
+    </table>
+    <p>实践中：<strong>因子不多（&lt;20）时等权往往不输加权方案</strong>——这是学术界与业界共识（"equal weighting is hard to beat"）。加权方案更常用于因子池很大时的粗筛。</p>
+
+    <div class="chart-box" data-chart="c14">
+      <div class="chart-title">C14 · 三种权重方案对比（8 因子）</div>
+      <div class="chart-sub">等权 / IC 加权 / IR 加权</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>IC 加权和 IR 加权把权重集中在强因子（EP/MOM60/ROE/GROW）上；弱因子权重被压低甚至归零（IR 加权截断负值）。</div>
+    </div>
+
+    <h2 id="s4">4.4 合成增益评估：合成因子是不是更好？</h2>
+    <p>合成的价值要看<strong>增量</strong>：合成因子的 IC 应该高于单一因子，且 IC 标准差（月度波动）应该下降——后者往往比前者更重要。</p>
+
+    <div class="chart-box" data-chart="c15">
+      <div class="chart-title">C15 · 合成前后 IC 对比</div>
+      <div class="chart-sub">8 个单因子 vs 3 种合成方案的月度 IC 均值</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>等权合成的 IC（≈0.07-0.08）高于任何单因子——分散化红利。更关键的是合成 IC 的月度波动下降（notebook 04 里对比 IC 标准差）。</div>
+    </div>
+
+    <h2 id="s5">4.5 核心代码：合成因子</h2>
+    <div class="code-block">
+<pre># 合成因子 = 权重 × z 因子（逐期求和后再次 z-score）
+zcols = [f"z_{f}" for f in ["EP", "SIZE", "MOM60", "REV5", "VOL20", "TURN", "ROE", "GROW"]]
+Z = factors.groupby("date")[zcols].transform(lambda s: (s - s.mean()) / s.std())
+
+def composite(weights, Z):
+    return (Z * weights).sum(axis=1)
+
+w_equal = np.ones(8) / 8
+# IC 加权：样本内各因子 IC 均值归一
+ic_vec = np.array([ic_summary[f]["mean"] for f in FACTORS])
+w_ic = ic_vec / ic_vec.sum()
+# IR 加权：ICIR 截断负值后归一
+w_ir = np.clip(np.array([ic_summary[f]["icir"] for f in FACTORS]), 0, None)
+w_ir = w_ir / w_ir.sum()
+
+factors["z_composite"] = composite(w_equal, Z)   # 合成因子（用于第 5 章选股）</pre>
+    </div>
+
+    <h2 id="s6">常见误区</h2>
+    <div class="callout warn"><h4>误区一：同质因子堆积</h4><p>把 5 个动量变体合成，等于一个因子的 5 次下注——相关矩阵一查就现形。</p></div>
+    <div class="callout warn"><h4>误区二：用样本内 IC 定权导致过拟合</h4><p>在历史数据上 IC 加权永远"看起来"更好——因为权重就是按这段历史调的。稳健做法：滚动样本外评估（walk-forward）。</p></div>
+    <div class="callout warn"><h4>误区三：合成前不统一方向</h4><p>负向因子（SIZE）不取负直接合成，会与正向因子互相抵消。合成前每个因子按预期方向标准化。</p></div>
+
+    <h2 id="s7">思考题</h2>
+    <ol>
+      <li>等权合成 vs IC 加权，哪个更容易过拟合？为什么业界常说等权"难被打败"？</li>
+      <li>两个因子相关系数 0.8、IC 相同——合成它们与只用其一，IC 提升多少？IC 波动呢？（提示：相关系数进方差公式）</li>
+      <li>正交化后的"增量因子"直接使用需要注意什么？</li>
+    </ol>
+
+    <div class="callout key">
+      <h4>衔接下一章</h4>
+      <p>有了合成因子，下一步把它变成<strong>真金白银的持仓</strong>：选股、配权重、控约束、算成本。第 5 章讲组合构建。<a href="ch5-portfolio.html">→ 进入第 5 章</a></p>
+    </div>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <span>第 4 章 · 因子合成</span>
+    <span><a href="ch3-testing.html">← 上一章</a> · <a href="ch5-portfolio.html">下一章 →</a></span>
+  </div>
+</footer>
+
+<script src="../assets/js/echarts.min.js"></script>
+<script src="../assets/js/chartkit.js"></script>
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/pages/ch4.js"></script>
+</body>
+</html>

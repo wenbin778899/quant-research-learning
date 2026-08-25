@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 1 章 数据获取与清洗 · 量化研究入门</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="container">
+    <div class="brand">量化研究入门<small>多因子策略 · 尚宸笔试交付物</small></div>
+    <nav id="site-nav"></nav>
+    <button class="theme-toggle" id="theme-toggle"></button>
+  </div>
+</header>
+
+<main class="container">
+  <aside class="toc" id="page-toc"></aside>
+  <article class="content">
+    <h1>第 1 章 数据获取与清洗</h1>
+    <div class="chapter-meta">
+      <span>学习目标：理解数据面板结构 · 掌握清洗清单 · 认识复权 · 警惕幸存者偏差与前瞻偏差</span>
+      <span>图表：C2-C5</span><span>代码：notebook 01</span>
+    </div>
+    <p class="lead">量化研究的第一课不是策略，是数据。业界流传一句话：<strong>"Garbage in, garbage out"</strong>——数据错了，后面所有因子检验、回测结果都不可信。本章讲清楚拿到原始数据后必须做的几件事。</p>
+
+    <h2 id="s1">1.1 数据全景：量化研究的数据从哪来</h2>
+    <p>多因子研究需要三类数据：</p>
+    <ul>
+      <li><strong>行情数据</strong>：OHLCV（开高低收、成交量）、复权价、指数行情——回答"价格是什么"</li>
+      <li><strong>基本面数据</strong>：财务报表（营收、净利润、ROE）、估值指标（PE/PB）、分红送配——回答"公司值多少钱"</li>
+      <li><strong>另类/一致预期数据</strong>：分析师盈利预测、舆情、资金流——回答"市场怎么看"</li>
+    </ul>
+    <p>数据源的现实约束（团队内常用的对照）：</p>
+    <table>
+      <tr><th>数据源</th><th>类型</th><th>优点</th><th>注意点</th></tr>
+      <tr><td>Wind / 聚宽</td><td>商业终端</td><td>覆盖全、更新快、自带复权与事件接口</td><td>贵；字段口径需人工核对</td></tr>
+      <tr><td>Tushare Pro</td><td>开源 API</td><td>免费额度、A 股覆盖好</td><td>积分限流；财务数据有滞后</td></tr>
+      <tr><td>AkShare</td><td>开源爬虫</td><td>免费、覆盖广（含另类数据）</td><td>接口不稳定，需加缓存与重试</td></tr>
+    </table>
+    <div class="callout key">
+      <h4>核心原则：数据口径要写进文档</h4>
+      <p>同一只股票，"收盘价"在复权/不复权、前复权/后复权口径下数值完全不同。团队对每个字段都要有明确的定义与来源记录——这是基础研究工作的第一道工序。</p>
+    </div>
+
+    <h2 id="s2">1.2 认识数据面板：截面 × 时序</h2>
+    <p>因子研究的数据是<strong>面板数据（Panel Data）</strong>：每个日期截面上有 N 只股票，沿时间方向有 T 期。两个维度缺一不可：</p>
+    <ul>
+      <li><strong>截面（Cross-section）</strong>：某一天，200 只股票各有一个因子值——排序、选股发生在截面内</li>
+      <li><strong>时序（Time-series）</strong>：某只股票沿 5 年时间的价格/因子值序列——计算动量、波动率等需要历史窗口</li>
+    </ul>
+    <p>本资料使用的模拟股票池：200 只股票、8 个行业（各 25 只）、2020-01 至 2024-12 共 60 个月度调仓期。C2 展示了股票池的行业构成：</p>
+
+    <div class="chart-box" data-chart="c2">
+      <div class="chart-title">C2 · 样本股票池行业构成</div>
+      <div class="chart-sub">柱高 = 股票数量；折线 = 行业总市值（模拟口径）</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>8 个行业各 25 只，构成均衡；市值因股本与价格模拟的随机性而分化。均衡的股票池让行业中性化（第 2 章）有意义。</div>
+    </div>
+
+    <h2 id="s3">1.3 清洗清单：拿到数据先做什么</h2>
+    <p>原始数据几乎必然包含以下问题，清洗顺序很重要：</p>
+    <table>
+      <tr><th>问题</th><th>表现</th><th>处理</th></tr>
+      <tr><td>缺失值</td><td>某日无成交/无财务字段</td><td>时间序列用前值填充（ffill）；截面缺失因子值直接剔除</td></tr>
+      <tr><td>重复值</td><td>同一 (code, date) 出现多行</td><td>按 (code, date) 去重，保留最后一条</td></tr>
+      <tr><td>异常值</td><td>价格涨跌超过 ±10%（A 股涨跌停）或为 0/负</td><td>核对涨跌停；明显错误的剔除</td></tr>
+      <tr><td>停牌</td><td>无成交但应有记录</td><td>价格冻结、成交量 0，收益为 0；复牌日收益包含停牌期累积</td></tr>
+      <tr><td>退市</td><td>股票从行情中消失</td><td><strong>绝不直接删除</strong>——否则引入幸存者偏差（见 1.5）</td></tr>
+    </table>
+    <p>本模拟数据中注入了两类"脏数据"：约 0.5% 的随机缺失值与 0.4% 的随机停牌。C5 展示了它们的分布：</p>
+
+    <div class="chart-box" data-chart="c5a">
+      <div class="chart-title">C5a · 数据质量：各字段缺失率</div>
+      <div class="chart-sub">模拟注入的随机缺失（close/open ≈ 0.5%）与停牌比例</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>缺失率看似很小（0.5%），但 25 万行数据里就是 1200+ 行；如果不去处理，任何按行聚合的统计都会引入偏差。</div>
+    </div>
+
+    <div class="chart-box" data-chart="c5b">
+      <div class="chart-title">C5b · 日收益率分布（按行业箱线）</div>
+      <div class="chart-sub">1%-99% 分位箱线，展示收益分布的肥尾特征</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>日收益分布有明显肥尾（箱须远长于箱体）——这就是为什么因子预处理要用中位数/MAD 而非均值/标准差。</div>
+    </div>
+
+    <h2 id="s4">1.4 价格调整：为什么必须用复权价</h2>
+    <p>股票分红或送股时，交易所会对价格做<strong>除权除息调整</strong>（价格机械性下跌）。用<strong>未复权价</strong>计算收益率会产生虚假的负收益，例如：</p>
+    <ul>
+      <li>现金分红 0.3 元/股：除息日开盘价机械性下调 0.3 元 → 不复权价单日"跌" 3%（实际股东并未亏损）</li>
+      <li>10 送 2 股：除权日价格 ×(1/1.2) → 不复权价单日"跌" 16.7%</li>
+    </ul>
+    <p>两种标准复权口径：</p>
+    <ul>
+      <li><strong>后复权</strong>：以首日为基准向前累积，最新价随实际价格变动——适合长期收益测算</li>
+      <li><strong>前复权</strong>：以最新价为基准回推历史价格——适合看图与选股（历史价格最接近"当时看到的价格"）</li>
+    </ul>
+
+    <div class="chart-box" data-chart="c3">
+      <div class="chart-title">C3 · 个股日线样本（K 线 + MA5/MA20）</div>
+      <div class="chart-sub">下拉切换样本：000001（普通股）/ 000002（分红股）/ 000180（退市股）</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>000180 是退市股样本——末尾可见连续大跌后数据截止（停牌退市），这是第 1.5 节幸存者偏差的现场。</div>
+    </div>
+
+    <div class="chart-box" data-chart="c4">
+      <div class="chart-title">C4 · 复权方式对比（分红股 000002）</div>
+      <div class="chart-sub">同一起点归一化：未复权 / 前复权 / 后复权</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>未复权曲线（灰）在每次除息日出现"跳空下跌"台阶；复权曲线抹平了这些机械性跳空，反映真实投资收益。</div>
+    </div>
+
+    <h2 id="s5">1.5 两条"看不见"的偏差：幸存者偏差与前瞻偏差</h2>
+    <div class="callout pitfall">
+      <h4>幸存者偏差（Survivorship Bias）</h4>
+      <p>如果研究时只保留<strong>今天还活着</strong>的股票（删除已退市的），回测收益会系统性虚高——因为退市股大多是亏损股，被删掉等于"自动躲开了最差的一批"。A 股退市率虽低，但 2019 年注册制改革后退市加速，这个偏差越来越重要。</p>
+      <p><strong>正确处理</strong>：股票池固定在期初（Point-in-Time 口径），退市股保留到退市当日，之后退出。本模拟数据含 3 只退市股（000180/000185/000190），Notebook 01 演示了"删掉退市股" vs "保留"两种口径下分层收益的差异。</p>
+    </div>
+    <div class="callout pitfall">
+      <h4>前瞻偏差（Look-ahead Bias）</h4>
+      <p>用"当时还拿不到"的数据做决策。最典型的是<strong>财务数据滞后披露</strong>：年报 4 月底才披露，不能假设 1 月就有年报数据；以及<strong>未来数据对齐</strong>：用 t 期之后的行情计算 t 期因子。</p>
+      <p><strong>正确处理</strong>：引入 Point-in-Time 数据库（财务数据带披露日期）；因子只用 ≤ 调仓日的过去数据。本资料第 2 章的所有因子均严格只用历史窗口——这是数据纪律，也是代码评审重点。</p>
+    </div>
+
+    <h2 id="s6">1.6 核心代码：清洗管道</h2>
+    <p>完整代码见 <code>notebooks/01_data_prep.ipynb</code>（可从 <code>data/csv/prices.csv</code> 重算全部结果并自动校验）。核心管道：</p>
+    <div class="code-block">
+<pre>import pandas as pd
+
+prices = pd.read_csv("data/csv/prices.csv", parse_dates=["date"])
+
+def clean_pipeline(df):
+    """数据清洗管道：去重 → 剔除停牌/退市残留 → ffill 缺失 → 标记退市后区间"""
+    df = df.drop_duplicates(["code", "date"], keep="last")
+    df = df.sort_values(["code", "date"])
+    # 停牌日成交量记 0，价格沿用前值（价格冻结）
+    df["close"] = df["close"].ffill()          # 缺失值前向填充
+    # 退市股：最后有效日期之后的所有记录剔除（fdelist_date 来自 stocks_basic.csv）
+    basic = pd.read_csv("data/csv/stocks_basic.csv", parse_dates=["delist_date"])
+    for _, r in basic.dropna(subset=["delist_date"]).iterrows():
+        df = df.drop(df[(df["code"] == r["code"]) &
+                        (df["date"] > r["delist_date"])].index)
+    return df
+
+clean = clean_pipeline(prices)
+print(f"清洗后 {len(clean):,} 行（原始 {len(prices):,} 行）")</pre>
+    </div>
+    <p>复权计算的核心逻辑（除息日收益修正）：</p>
+    <div class="code-block">
+<pre># 除息日（ex_date）的"复权收益" = (close + cash) × (1 + bonus) / prev_close − 1
+# 后复权价 = 累计乘积；前复权 = 后复权 × (最新收盘价 / 最新后复权价)
+df = df.merge(dividends, on=["code", "date"], how="left")
+df["cash"] = df["cash"].fillna(0.0); df["bonus"] = df["bonus"].fillna(0.0)
+df["r_adj"] = (df["close"] + df["cash"]) * (1 + df["bonus"]) / df["close"].shift(1) - 1
+df["adj_bwd"] = df["close"] * (1 + df["r_adj"].fillna(0)).cumprod()</pre>
+    </div>
+
+    <h2 id="s7">常见误区</h2>
+    <div class="callout warn"><h4>误区一：用未复权价算收益率</h4><p>分红季收益被低估——典型症状是"策略每年 6-7 月莫名跑输"。因子数据管道里收益率必须用复权价。</p></div>
+    <div class="callout warn"><h4>误区二：直接删掉退市股</h4><p>等于在回测里"预知"谁要退市。正确做法是保留到退市日。Notebook 01 里对比两种口径的分层收益差。</p></div>
+    <div class="callout warn"><h4>误区三：用未来数据对齐财务数据</h4><p>把年报数据用在披露日之前。所有基本面因子必须挂披露日期（PIT），宁可少用数据，不可错用数据。</p></div>
+
+    <h2 id="s8">思考题</h2>
+    <ol>
+      <li>为什么"清洗后行数变少"不代表清洗做对了？你会加什么校验来确认清洗质量？</li>
+      <li>前复权 vs 后复权，在计算因子（如动量）时是否有差异？什么场景下差异不可忽略？</li>
+      <li>如果某只股票停牌 3 个月后复牌，它的月收益如何计算？停牌期收益算谁头上？</li>
+    </ol>
+
+    <div class="callout key">
+      <h4>衔接下一章</h4>
+      <p>数据干净了，下一步就是<strong>从数据中构造预测特征——因子</strong>。第 2 章讲 8 个示例因子的定义、计算细节与预处理（标准化、中性化）。<a href="ch2-factor.html">→ 进入第 2 章</a></p>
+    </div>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <span>第 1 章 · 数据获取与清洗</span>
+    <span><a href="../index.html">← 学习路径</a></span>
+  </div>
+</footer>
+
+<script src="../assets/js/echarts.min.js"></script>
+<script src="../assets/js/chartkit.js"></script>
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/pages/ch1.js"></script>
+</body>
+</html>

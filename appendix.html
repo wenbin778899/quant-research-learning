@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>附录 · 术语表与复现说明 · 量化研究入门</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="container">
+    <div class="brand">量化研究入门<small>多因子策略 · 尚宸笔试交付物</small></div>
+    <nav id="site-nav"></nav>
+    <button class="theme-toggle" id="theme-toggle"></button>
+  </div>
+</header>
+
+<main class="container">
+  <aside class="toc" id="page-toc"></aside>
+  <article class="content">
+    <h1>附录</h1>
+    <p class="lead">术语表、数据字典、Notebook 索引与复现说明——阅读章节时的随手查阅处。</p>
+
+    <h2 id="terms">术语表（30+）</h2>
+    <table>
+      <tr><th style="width:150px">术语</th><th>含义</th></tr>
+      <tr><td>Alpha</td><td>超额收益中不能被市场/风格因子解释的部分；也指预测因子</td></tr>
+      <tr><td>APT（套利定价理论）</td><td>多因子定价模型：收益由多个共同因子驱动</td></tr>
+      <tr><td>Beta</td><td>对市场因子的暴露（敏感性）</td></tr>
+      <tr><td>Brinson 归因</td><td>将超额收益拆分为配置效应与选股效应的方法</td></tr>
+      <tr><td>Calmar 比率</td><td>年化收益 / 最大回撤绝对值</td></tr>
+      <tr><td>Data Snooping（数据窥探）</td><td>在样本内反复尝试导致统计显著性虚假</td></tr>
+      <tr><td>Drawdown（回撤）</td><td>净值从峰值回落的最大幅度</td></tr>
+      <tr><td>Fama-MacBeth 回归</td><td>两步横截面回归法：估计因子收益率的经典方法</td></tr>
+      <tr><td>Fama-French 三因子</td><td>市场、规模（SMB）、价值（HML）三个定价因子</td></tr>
+      <tr><td>IC（信息系数）</td><td>因子值与未来收益的截面相关系数</td></tr>
+      <tr><td>ICIR</td><td>IC 均值 / IC 标准差，衡量预测力的稳定性</td></tr>
+      <tr><td>IR（信息比率）</td><td>超额收益均值 / 跟踪误差</td></tr>
+      <tr><td>Look-ahead Bias（前瞻偏差）</td><td>使用当时尚不可知的数据导致的偏差</td></tr>
+      <tr><td>MAD</td><td>中位数绝对偏差，鲁棒的去极值依据</td></tr>
+      <tr><td>Neutralization（中性化）</td><td>剥离因子中的行业/市值成分（回归取残差）</td></tr>
+      <tr><td>PIT（Point-in-Time）</td><td>数据按"当时可知"口径存储与使用</td></tr>
+      <tr><td>Panel Data（面板数据）</td><td>截面 × 时间两维结构的数据</td></tr>
+      <tr><td>Sharpe（夏普比率）</td><td>（组合收益 − 无风险利率）/ 波动率</td></tr>
+      <tr><td>Survivorship Bias（幸存者偏差）</td><td>样本只含存活对象导致的系统性高估</td></tr>
+      <tr><td>Tracking Error（跟踪误差）</td><td>组合与基准收益差的标准差</td></tr>
+      <tr><td>Turnover（换手率）</td><td>调仓时买卖股票数量占持仓的比例</td></tr>
+      <tr><td>Walk-forward</td><td>滚动样本外验证方法（滚动训练-测试）</td></tr>
+      <tr><td>Winsorize（去极值）</td><td>将超出 ±kσ 的极端值截断</td></tr>
+      <tr><td>z-score</td><td>截面标准化：(x − mean) / std</td></tr>
+      <tr><td>多空组合（Long-Short）</td><td>做多高分因子股、做空低分股，剥离市场</td></tr>
+      <tr><td>分层回测</td><td>按因子分位数分组检验收益单调性</td></tr>
+      <tr><td>复权（前/后）</td><td>调整分红送配对价格的影响，还原真实收益</td></tr>
+      <tr><td>合成因子</td><td>多个单因子的加权组合（等权/IC 加权等）</td></tr>
+      <tr><td>因子暴露</td><td>组合持仓在某风格因子上的加权暴露</td></tr>
+      <tr><td>冲击成本</td><td>大额交易推动价格反向移动造成的成本</td></tr>
+      <tr><td>胜率</td><td>跑赢基准（或正收益）的期数占比</td></tr>
+      <tr><td>点位数（bp）</td><td>万分之一（0.01%），成本与收益的常用单位</td></tr>
+    </table>
+
+    <h2 id="data-dict">数据字典</h2>
+    <h3>data/csv/（全量数据，Notebook 读取）</h3>
+    <table>
+      <tr><th>文件</th><th>字段</th><th>说明</th></tr>
+      <tr><td>stocks_basic.csv</td><td>code, industry, shares, bvps, roe_base, list_date, delist_date</td><td>股票池基础信息；3 只退市股带 delist_date</td></tr>
+      <tr><td>prices.csv</td><td>date, code, open, high, low, close, volume, turnover, is_suspended, adj_close_fwd, adj_close_bwd</td><td>日线行情（约 25 万行）；含随机缺失与停牌标记；复权价已预计算</td></tr>
+      <tr><td>dividends.csv</td><td>code, ex_date, cash, bonus</td><td>分红送配事件表（复权计算与教学演示用）</td></tr>
+      <tr><td>factors.csv</td><td>date, code, ep, size, mom60, rev5, vol20, turn, roe, grow, z_*, next_return</td><td>60 期 × 200 股因子面板；z_ 为预处理后因子；next_return 为 t→t+1 收益标签</td></tr>
+    </table>
+    <h3>data/*.json（网页图表数据）</h3>
+    <table>
+      <tr><th>文件</th><th>用途（图表）</th></tr>
+      <tr><td>ic.json</td><td>C8/C9/C10：月度 IC、ICIR、t 值、累积 IC</td></tr>
+      <tr><td>layers.json</td><td>C11/C12：十分位分层净值与月收益</td></tr>
+      <tr><td>factor_corr.json</td><td>C13：因子相关性矩阵</td></tr>
+      <tr><td>combine.json</td><td>C14/C15：三种权重与合成前后 IC</td></tr>
+      <tr><td>portfolio.json</td><td>C16/C17/C18：持仓、换手、成本敏感性</td></tr>
+      <tr><td>backtest.json</td><td>C19/C20/C21：净值、回撤、滚动超额、绩效指标</td></tr>
+      <tr><td>attribution.json</td><td>C22/C23/C24：Brinson 归因、风格暴露、风险分解</td></tr>
+      <tr><td>industry.json / quality.json</td><td>C2/C5：行业构成、数据质量</td></tr>
+      <tr><td>kline_sample.json</td><td>C3/C4：K 线样本与复权对比</td></tr>
+      <tr><td>distribution.json</td><td>C6/C7：因子预处理三态分布与中性化效果</td></tr>
+    </table>
+
+    <h2 id="nb-index">Notebook 索引</h2>
+    <table>
+      <tr><th>Notebook</th><th>内容</th><th>输出校验</th></tr>
+      <tr><td>01_data_prep.ipynb</td><td>数据清洗管道 + 复权计算</td><td>与 prices.csv 统计一致</td></tr>
+      <tr><td>02_factor_construction.ipynb</td><td>8 因子计算 + 标准化/中性化</td><td>z 因子与 factors.csv 一致</td></tr>
+      <tr><td>03_factor_testing.ipynb</td><td>IC 分析 + 分层回测</td><td>与 ic.json / layers.json 一致</td></tr>
+      <tr><td>04_factor_synthesis.ipynb</td><td>相关矩阵 + 三种权重 + 合成 IC</td><td>与 combine.json 一致</td></tr>
+      <tr><td>05_portfolio.ipynb</td><td>Top20 组合 + 换手 + 成本敏感性</td><td>与 portfolio.json 一致</td></tr>
+      <tr><td>06_backtest.ipynb</td><td>净值/回撤/指标 + 幸存者偏差对比</td><td>与 backtest.json 一致</td></tr>
+      <tr><td>07_attribution.ipynb</td><td>Brinson 归因 + 风格暴露 + 风险分解</td><td>与 attribution.json 一致</td></tr>
+    </table>
+
+    <h2 id="repro">复现说明</h2>
+    <div class="code-block">
+<pre># 1. 环境
+pip install -r scripts/requirements.txt     # numpy / pandas / scipy
+
+# 2. 一键复现全部数据（CSV + JSON，固定种子 SEED=42）
+python scripts/generate_data.py
+# 输出：data/csv/*.csv + data/*.json，并运行自检（IC 区间/分层单调/净值正性/退市标记）
+
+# 3. 网页本地预览
+python -m http.server 8000                  # 浏览器打开 http://localhost:8000/
+
+# 4. Notebook 校验
+# 每个 notebook 的最后一个 cell 会用 np.allclose 对照 data/*.json，
+# 全部打印 PASS 即证明网页图表数据可完整复现。
+</pre>
+    </div>
+    <div class="callout key">
+      <h4>一致性保证机制</h4>
+      <p>生成脚本内部的分析全部基于「prices.csv 注入缺失后 ffill 填充、剔除退市后区间」的序列；Notebook 从 CSV 读入后执行同样的清洗再重算——两条路径得到相同的数值，末 cell 用 <code>np.allclose</code> 对照网页 JSON。这一设计保证：<strong>网页上每一张图都可以从原始 CSV 一步步重算出来</strong>。</p>
+    </div>
+
+    <h2 id="faq">常见问题</h2>
+    <p><strong>Q：数据是真实的吗？</strong> 否。全部为模拟数据（对数正态收益 + 注入真实研究中的教学结构：退市、分红、停牌、缺失、因子预测力分层）。模拟参数与校准过程见 <code>scripts/generate_data.py</code> 注释。<strong>Q：为什么不用真实 A 股数据？</strong> 模拟数据完全可复现、无 API 依赖、且能精确控制"哪些因子有效、有效到什么程度"——教学上比真实数据的"噪声大、结构未知"更适合入门。</p>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <span>附录 · 术语表与复现说明</span>
+    <span><a href="index.html">← 学习路径</a></span>
+  </div>
+</footer>
+
+<script src="assets/js/echarts.min.js"></script>
+<script src="assets/js/chartkit.js"></script>
+<script src="assets/js/common.js"></script>
+</body>
+</html>

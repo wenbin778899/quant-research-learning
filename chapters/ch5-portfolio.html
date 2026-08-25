@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 5 章 组合构建 · 量化研究入门</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="container">
+    <div class="brand">量化研究入门<small>多因子策略 · 尚宸笔试交付物</small></div>
+    <nav id="site-nav"></nav>
+    <button class="theme-toggle" id="theme-toggle"></button>
+  </div>
+</header>
+
+<main class="container">
+  <aside class="toc" id="page-toc"></aside>
+  <article class="content">
+    <h1>第 5 章 组合构建</h1>
+    <div class="chapter-meta">
+      <span>学习目标：从因子分数到持仓 · 权重方案 · 约束与成本 · 基准选择</span>
+      <span>图表：C16-C18</span><span>代码：notebook 05</span>
+    </div>
+    <p class="lead">因子研究的最终产出是<strong>持仓</strong>。本章把合成因子变成一个可实盘的组合：选多少只、怎么配权重、加什么约束、成本吃掉多少收益。</p>
+
+    <h2 id="s1">5.1 从因子分数到持仓</h2>
+    <p>最朴素也最常用的做法：<strong>排序选股</strong>——每期调仓日按合成因子分数从高到低排序，取前 N 只（本资料：前 20 只 ≈ Top 10%），等权持有。为什么不用"每期全市场都配"？因为因子的预测力集中在高分段，尾部是噪声；也便于控制换手。</p>
+    <p>进阶方案（本资料不讲细节）：优化器求解权重——在约束下最大化组合因子暴露或最大化预期收益，如 Barra 风险模型 + 均值-方差优化。</p>
+
+    <h2 id="s2">5.2 权重方案与组合结构</h2>
+    <div class="chart-box" data-chart="c16">
+      <div class="chart-title">C16 · 最新一期组合持仓结构（Top20 等权）</div>
+      <div class="chart-sub">左：个股权重；右：组合行业分布</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>等权组合每只 5%；行业分布是"选股的自然结果"——若某行业权重远超其基准占比（约 12.5%），说明组合无意中做了行业下注（风险归因见第 7 章）。</div>
+    </div>
+
+    <h2 id="s3">5.3 组合约束：控制你不想承担的风险</h2>
+    <ul>
+      <li><strong>行业权重约束</strong>：单行业上限（如 ≤ 基准占比 + 5%），防止行业押注</li>
+      <li><strong>个股权重上限</strong>：单票 ≤ 10%，防止集中风险</li>
+      <li><strong>风格中性约束</strong>：市值/行业暴露归零（与第 2 章中性化同源）</li>
+    </ul>
+
+    <h2 id="s4">5.4 成本与换手：alpha 的头号敌人</h2>
+    <p>因子换手越频繁，交易成本越重。A 股的实际成本构成：</p>
+    <ul>
+      <li>佣金：约 1-3 bps/边</li>
+      <li>印花税：卖出 5 bps（2023.8 起减半）</li>
+      <li>冲击成本：按成交量的比例，小票可达 20-50 bps</li>
+    </ul>
+    <p>本模拟组合的月度换手约 60-130%（合成因子相邻期重叠少）——这个量级下，单边 20 bps 的成本足以吃掉大部分超额收益：</p>
+
+    <div class="chart-box" data-chart="c17">
+      <div class="chart-title">C17 · 月度换手率（60 期）</div>
+      <div class="chart-sub">换手 = 买卖股数之和 / 持仓数；虚线为均值</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>换手率在 60%-140% 间波动。均值线上的标注——如果换手主要由噪声因子驱动，降换手（如加约束）可以显著提升净值。</div>
+    </div>
+
+    <div class="chart-box" data-chart="c18">
+      <div class="chart-title">C18 · 成本敏感性（0/5/10/20 bps 四档）</div>
+      <div class="chart-sub">单边成本；同策略仅成本假设不同</div>
+      <div class="chart"></div>
+      <div class="chart-note"><strong>怎么看：</strong>0 成本年化收益与 20 bps 年化收益的差距，就是"理论 alpha"与"可交易 alpha"的距离。评审必问：<strong>"你测过扣费后的表现吗？"</strong></div>
+    </div>
+
+    <h2 id="s5">5.5 基准选择：你的策略和谁比</h2>
+    <table>
+      <tr><th>基准</th><th>适用场景</th><th>注意</th></tr>
+      <tr><td>沪深 300</td><td>大盘蓝筹风格策略</td><td>小市值策略跑赢它"太容易"，无信息量</td></tr>
+      <tr><td>中证 500 / 1000</td><td>中小盘策略（本资料股票池风格）</td><td>与股票池市值分布匹配</td></tr>
+      <tr><td>全市场等权</td><td>研究期的中性参照</td><td>本资料使用等权全样本作基准——便于归因</td></tr>
+    </table>
+    <p>基准应与股票池<strong>同源同域</strong>：用中证 1000 成分股做策略，却和沪深 300 比超额，是常见的新手错误。</p>
+
+    <h2 id="s6">5.6 核心代码：组合构建</h2>
+    <div class="code-block">
+<pre>def build_portfolio(factors, top_n=20):
+    """每期按合成因子取 Top N 等权，返回持仓与换手"""
+    holds = []
+    for t, g in factors.groupby("date"):
+        g = g.dropna(subset=["next_return"])
+        pick = g.nlargest(top_n, "z_composite")["code"].tolist()
+        holds.append(pick)
+    # 换手率 = 两期持仓差异
+    turn = [len(set(holds[t]) - set(holds[t-1])) * 2 / top_n for t in range(1, len(holds))]
+    return holds, turn
+
+# 成本敏感性：净值 × (1 − 换手 × 单边成本)
+def apply_cost(nav, turn, cost_bps):
+    cost = cost_bps * 1e-4
+    adj = [1.0]
+    for t in turn:
+        adj.append(adj[-1] * (1 - t * cost))
+    return nav * adj</pre>
+    </div>
+
+    <h2 id="s7">常见误区</h2>
+    <div class="callout warn"><h4>误区一：只看毛收益不看换手</h4><p>年化 40% 毛收益、月换手 150% 的策略，扣 10 bps 成本后可能只剩 20%。换手率必须和收益一起报告。</p></div>
+    <div class="callout warn"><h4>误区二：过度集中</h4><p>Top 5 集中持仓收益波动巨大，且隐含"因子分数最高的 5 只最有把握"的过度自信。</p></div>
+    <div class="callout warn"><h4>误区三：行业/市值暴露不设防</h4><p>组合实际押注行业或小市值风格——风格切换时莫名回撤，归因（第 7 章）会把你拆穿。</p></div>
+
+    <h2 id="s8">思考题</h2>
+    <ol>
+      <li>Top N 从 20 变 50，预期收益和换手会如何变化？"最优" N 应该怎么定？</li>
+      <li>如果合成因子在相邻两期的排序几乎不变，换手率会很低——你希望因子"稳定"还是"敏锐"？</li>
+      <li>冲击成本对大盘股和小盘股差异很大——同样 5% 个股权重，策略容量由谁决定？</li>
+    </ol>
+
+    <div class="callout key">
+      <h4>衔接下一章</h4>
+      <p>组合构建完毕，进入<strong>审判室</strong>：回测引擎怎么跑、绩效指标怎么读、回测有哪些坑。第 6 章讲回测与评估。<a href="ch6-backtest.html">→ 进入第 6 章</a></p>
+    </div>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <span>第 5 章 · 组合构建</span>
+    <span><a href="ch4-synthesis.html">← 上一章</a> · <a href="ch6-backtest.html">下一章 →</a></span>
+  </div>
+</footer>
+
+<script src="../assets/js/echarts.min.js"></script>
+<script src="../assets/js/chartkit.js"></script>
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/pages/ch5.js"></script>
+</body>
+</html>
