@@ -377,6 +377,8 @@ def build_layers(fdf):
             q = pd.qcut(x[m], 10, labels=False, duplicates="drop")
             for k in range(10):
                 r = float(y[m][q == k].mean())
+                if not np.isfinite(r):
+                    r = 0.0                       # 空层（分层退化）按收益 0 处理
                 monthly[f"L{k+1}"].append(r)
                 nav[f"L{k+1}"].append(nav[f"L{k+1}"][-1] * (1 + r))
             ls.append(ls[-1] * (1 + monthly["L10"][-1] - monthly["L1"][-1]))
@@ -539,8 +541,9 @@ def attribution_payload(fdf, universe, port):
             w_p.append(wp); w_b.append(wb); r_p.append(0.0)
             continue
         z = g[[f"z_{f}" for f in FACTORS]].fillna(0.0).values @ w
-        order = np.argsort(-z)
-        top = order[alive][:20]
+        order = np.argsort(-z)                     # 按分数排序后过滤无标签股票
+        order = order[y[order] == y[order]]
+        top = order[:20]
         for i in top:
             wp[INDUSTRIES.index(inds[i])] += 0.05
         for i in np.where(alive)[0]:
@@ -559,8 +562,16 @@ def attribution_payload(fdf, universe, port):
     # 风格暴露（组合持仓的因子加权 z，5 个风格因子）
     style = {f: [] for f in STYLE_FACTORS}
     for _, g in fdf.groupby("date"):
+        y = g["next_return"].values
+        alive = y == y
+        if not alive.any():                       # 最后一期无标签，暴露记 0
+            for f in STYLE_FACTORS:
+                style[f].append(0.0)
+            continue
         z = g[[f"z_{f}" for f in FACTORS]].fillna(0.0).values @ w
-        top = np.argsort(-z)[:20]
+        order = np.argsort(-z)
+        order = order[alive[order]]               # 过滤退市/无标签股票
+        top = order[:20]
         for f in STYLE_FACTORS:
             style[f].append(float(g[f"z_{f}"].values[top].mean()))
 
@@ -687,8 +698,17 @@ def main():
         s = summ[f]
         print(f"   {f:6s} IC={s['mean']:+.4f}  ICIR={s['icir']}  t={s['t']}  rank={s['rank_mean']:+.4f}")
 
-    print("== 3/4 分析（IC/分层/合成/组合/回测/归因）==")
-    close_clean = clean_prices(p_final, delist_day)
+    print("== 3/4 注入缺失 → 分析（IC/分层/合成/组合/回测/归因）==")
+    # 注入随机缺失（close/open 各 ~0.5%，排除首日——首日缺失无法 ffill）
+    rng_m = np.random.default_rng(SEED + 11)
+    mask = rng_m.random((N_DAYS, N_STOCKS)) < MISSING_RATE
+    mask[0] = False
+    p_export = p_final.copy()
+    p_export[~np.isfinite(p_export)] = np.nan
+    p_export[mask] = np.nan
+    # 分析一律基于「注入缺失后 ffill、再剔除退市后区间」的序列 —— 与 notebook 从 CSV 读入后完全一致
+    close_clean = clean_prices(pd.DataFrame(p_export).ffill().values, delist_day)
+    fdf, zmat = build_factors(close_clean, universe, dates, rebal)
     ic_payload = compute_ic_payload(fdf)
     layers = build_layers(fdf)
     comb = synthesize(fdf)
@@ -700,20 +720,15 @@ def main():
     # ---- CSV ----
     long_rows = []
     for t in range(N_DAYS):
-        alive = ~np.isnan(p_final[t])
+        alive = np.isfinite(p_final[t])          # 退市后无数据行；缺失值保留为 NaN 行
         if not alive.any():
             break
         long_rows.append(pd.DataFrame({
             "date": dates[t], "code": universe["code"].values[alive],
-            "open": p_final[t][alive], "high": p_final[t][alive],
-            "low": p_final[t][alive], "close": p_final[t][alive],
+            "open": p_export[t][alive], "high": p_export[t][alive],
+            "low": p_export[t][alive], "close": p_export[t][alive],
             "volume": np.nan, "turnover": np.nan, "is_suspended": suspend[t][alive]}))
     prices_long = pd.concat(long_rows, ignore_index=True)
-    # 注入随机缺失（close/open 各 ~0.5%）
-    rng_m = np.random.default_rng(SEED + 11)
-    mask = rng_m.random(len(prices_long)) < MISSING_RATE
-    prices_long.loc[mask & (prices_long["is_suspended"] == 0), "close"] = np.nan
-    prices_long.loc[mask, "open"] = np.nan
     # 成交量/换手（独立模拟）
     rng_v = np.random.default_rng(SEED + 17)
     prices_long["volume"] = 1e7 * np.exp(rng_v.normal(0, 0.5, len(prices_long)))
@@ -722,7 +737,7 @@ def main():
     # 复权价（基于清洗后矩阵，与 notebook 一致）
     adj = compute_adjusted(close_clean, dividends, dates)
     prices_long = prices_long.merge(adj, on=["date", "code"], how="left")
-    prices_long.to_csv(DATA_CSV / "prices.csv", index=False, float_format="%.4f")
+    prices_long.to_csv(DATA_CSV / "prices.csv", index=False, float_format="%.6f")
     print("  ✓ data/csv/prices.csv")
 
     universe[["code", "industry", "shares", "bvps", "roe_base", "list_date", "delist_date"]] \
