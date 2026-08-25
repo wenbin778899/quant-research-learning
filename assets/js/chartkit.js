@@ -24,9 +24,20 @@ var ChartKit = (function () {
   var GRID = { light: "#e1e0d9", dark: "#2c2c2a" };
 
   var cache = {};
+  /* 从 chartkit.js 的脚本 URL 推导站点根目录（支持根目录与 chapters/ 子目录页面） */
+  function siteRoot() {
+    var scripts = document.getElementsByTagName("script");
+    for (var i = 0; i < scripts.length; i++) {
+      var src = scripts[i].src || "";
+      var idx = src.indexOf("/assets/js/chartkit.js");
+      if (idx >= 0) return src.slice(0, idx + 1);
+    }
+    return "./";
+  }
+  var DATA_PREFIX = siteRoot() + "data/";
   function loadData(name) {
     if (cache[name]) return Promise.resolve(cache[name]);
-    return fetch("data/" + name)
+    return fetch(DATA_PREFIX + name)
       .then(function (r) { if (!r.ok) throw new Error("加载 " + name + " 失败: " + r.status); return r.json(); })
       .then(function (d) { cache[name] = d; return d; });
   }

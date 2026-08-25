@@ -102,7 +102,7 @@
       // 语言标签
       var first = (pre.textContent || "").trim();
       var lang = "";
-      var m = first.match(/^(?:#|//|\/\*)?\s*(?:python|python3|bash|json|sql)\b/i);
+      var m = first.match(/^(?:#|\/\/|\/\*)?\s*(?:python|python3|bash|json|sql)\b/i);
       if (m) lang = m[1].toLowerCase() || m[0].toLowerCase();
       if (/^# -\*-/.test(first) || /import (pandas|numpy)/.test(first)) lang = "python";
       if (lang) {
@@ -125,21 +125,13 @@
     });
   }
 
-  /* ---- 图表与图片懒加载 ---- */
+  /* ---- 图表渲染（数据为预计算 JSON，直接渲染，无需懒加载） ---- */
   function initCharts() {
     var boxes = document.querySelectorAll(".chart-box");
-    if (!boxes.length) return;
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) {
-        if (e.isIntersecting) {
-          var box = e.target;
-          var name = box.dataset.chart;
-          if (name && window.ChartKit) ChartKit.render(box, name);
-          io.unobserve(box);
-        }
-      });
-    }, { rootMargin: "200px" });
-    boxes.forEach(function (b) { io.observe(b); });
+    boxes.forEach(function (box) {
+      var name = box.dataset.chart;
+      if (name && window.ChartKit) ChartKit.render(box, name);
+    });
   }
 
   document.addEventListener("DOMContentLoaded", function () {

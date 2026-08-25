@@ -603,7 +603,7 @@ def attribution_payload(fdf, universe, port):
             "brinson": {"allocation": [round(v, 4) for v in agg["alloc"]],
                         "selection": [round(v, 4) for v in agg["sel"]],
                         "total": [round(v, 4) for v in agg["total"]]},
-            "style_exposure": {"dates": ddates,
+            "style_exposure": {"dates": ddates, "factors": list(STYLE_FACTORS),
                                **{f: [round(v, 4) for v in style[f]] for f in STYLE_FACTORS}},
             "risk": {"dates": q_dates, "systematic": sys_, "industry": ind_, "idiosyncratic": idio_}}
 
