@@ -15,21 +15,16 @@
     { href: "process.html", label: "研究过程" },
   ];
 
-  function base() {
-    // 从当前页面路径推导项目根（相对路径前缀）
-    var p = location.pathname.split("/");
-    var file = p[p.length - 1];
-    return file.indexOf(".html") === -1 ? "" : "";
-  }
-
   /* ---- 导航注入 ---- */
   function injectNav() {
     var navEl = document.getElementById("site-nav");
     if (!navEl) return;
+    // 站点根前缀：根目录页面为 ""，chapters/ 子目录页面为 "../"（从 chartkit 的脚本位置推导）
+    var root = (window.ChartKit && ChartKit.siteRoot) ? ChartKit.siteRoot() : "";
     var cur = location.pathname.split("/").pop() || "index.html";
     navEl.innerHTML = NAV.map(function (n) {
       var cls = cur === n.href ? " class=\"active\"" : "";
-      return "<a href=\"" + n.href + "\"" + cls + ">" + n.label + "</a>";
+      return "<a href=\"" + root + n.href + "\"" + cls + ">" + n.label + "</a>";
     }).join("");
   }
 

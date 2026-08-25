@@ -153,6 +153,6 @@ var ChartKit = (function () {
     PALETTE: PALETTE, SEQ: SEQ, SURFACE: SURFACE, INK: INK, GRID: GRID,
     loadData: loadData, register: register, render: render, applyTheme: applyTheme,
     baseOpts: baseOpts, dataZoomOpts: dataZoomOpts, yFmt: yFmt, pct: pct, numFmt: numFmt,
-    currentTheme: currentTheme,
+    currentTheme: currentTheme, siteRoot: siteRoot,
   };
 })();
